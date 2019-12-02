@@ -11,16 +11,9 @@ import math
 # Import configuration file
 config = toml.load('config.toml')
 
-# Connect to Adafruit IOT services and IFTTT feed
-adafruit_io = Adafruit_IO.Client(config['adafruit_io']['username'], config['adafruit_io']['key'])
-
 cct_lookup = {}
 
-try:
-    ifttt_feed = adafruit_io.feeds('ifttt')
-except Adafruit_IO.RequestError:
-    feed = Adafruit_IO.Feed(name='ifttt')
-    ifttt_feed = adafruit_io.create_feed(feed)
+
 
 # Connect to Philips Hue bridge and get lights dictionary
 bridge = phue.Bridge(config['hue']['ip_address'])
@@ -50,10 +43,11 @@ def wake_up_sequence():
 def message_received(client, feed_id, payload):
     print('Received new value: {0}'.format(payload))
     if payload == 'wake up':
-        wake_up_sequence()
+        wake_up_sequence_thread = threading.Thread(target=wake_up_sequence)
+        wake_up_sequence_thread.start()
     elif payload == 'sleep':
         for light in lights:
-            light.on = False 
+            light.on = False
 
 if __name__ == '__main__':    
     print('Starting...')
@@ -66,8 +60,19 @@ if __name__ == '__main__':
             cct_lookup[entry['CCT']] = [float(entry['x (black body)']) + x_bias,
                                         float(entry['y (black body)']) + y_bias]
 
+    try:
+        ifttt_feed = adafruit_io.feeds('ifttt')
+    except Adafruit_IO.RequestError:
+        feed = Adafruit_IO.Feed(name='ifttt')
+        ifttt_feed = adafruit_io.create_feed(feed)
+    
+    # Connect to Adafruit IOT services and IFTTT feed
+    adafruit_io = Adafruit_IO.Client(config['adafruit_io']['username'], config['adafruit_io']['key'])
+
+    
     adafruit_io_client = Adafruit_IO.MQTTClient(config['adafruit_io']['username'], config['adafruit_io']['key'])
 
+    
     # Setup callback functions
     adafruit_io_client.on_connect = connected
     adafruit_io_client.on_message = message_received
