@@ -105,3 +105,4 @@ venv.bak/
 
 # Configuration files
 src/config.toml
+src/hue-manager.log
